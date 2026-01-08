@@ -23,9 +23,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// Kathmandu Metropolitan City contact emails
-const CITY_SERVICES_EMAIL = "info@kathmandu.gov.np";
-const ROAD_SERVICES_EMAIL = "roads@kathmandu.gov.np";
+// Testing recipient
+const CITY_SERVICES_EMAIL = "biwas2059@gmail.com";
+const ROAD_SERVICES_EMAIL = "biwas2059@gmail.com";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -205,7 +205,7 @@ Sincerely,
 A Concerned Kathmandu Resident
 
 ---
-Submitted via Fix My Street Kathmandu
+Submitted via Fix My Street Kathmandu (Beta)
 Report ID: ${reportId}`;
 }
 
@@ -217,7 +217,7 @@ const HTML = `<!DOCTYPE html>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f0f23">
-  <title>POTHOLE HUNTER - Kathmandu</title>
+  <title>POTHOLE Reporter - Kathmandu</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -557,8 +557,8 @@ const HTML = `<!DOCTYPE html>
 <body>
   <div id="main-screen" class="screen active">
     <div class="header">
-      <h1>POTHOLE HUNTER</h1>
-      <p>Making Kathmandu roads smooth again</p>
+      <h1>POTHOLE REPORTER</h1>
+      <p>Making Kathmandu roads smooth again • Beta</p>
     </div>
     <div class="main">
       <div id="gps-bar" class="gps-bar searching">
@@ -850,7 +850,7 @@ const HTML = `<!DOCTYPE html>
         timestamp: new Date().toISOString(),
         image: photoData,
         address: addr,
-        source: 'Pothole Hunter'
+        source: 'Pothole reporter'
       };
 
       try {
@@ -894,60 +894,6 @@ const HTML = `<!DOCTYPE html>
         return parts.join(', ') || d.display_name || 'Kathmandu, Nepal';
       } catch { return 'Kathmandu, Nepal'; }
     }
-
-    function dataUrlToFile(dataUrl, filename) {
-      const parts = dataUrl.split(',');
-      const meta = parts[0] || '';
-      const base64 = parts[1] || '';
-      const match = /data:(.*?);base64/.exec(meta);
-      const mime = match ? match[1] : 'image/jpeg';
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return new File([bytes], filename, { type: mime });
-    }
-
-    function stripPhotoLinks(text) {
-      return text
-        .split('\\n')
-        .filter((line) => {
-          const trimmed = line.trim().toLowerCase();
-          return !(
-            trimmed.startsWith('photo of pothole:') ||
-            trimmed.startsWith('full report with photo:') ||
-            trimmed.startsWith('photo:') ||
-            trimmed.startsWith('image:')
-          );
-        })
-        .join('\\n')
-        .trim();
-    }
-
-    async function sendEmail() {
-      if (!currentReport || !photoData) return;
-      const baseText = currentReport.formalLetter || '';
-      const emailText = stripPhotoLinks(baseText) + '\\n\\nPhoto attached.';
-      const file = dataUrlToFile(photoData, 'pothole-' + (currentReport.reportId || 'report') + '.jpg');
-      const shareData = { title: 'Pothole Report', text: emailText, files: [file] };
-
-      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
-        try {
-          await navigator.share(shareData);
-          return;
-        } catch {}
-      }
-
-      if (currentReport.mailtoUrl) {
-        window.location.href = currentReport.mailtoUrl;
-      }
-    }
-
-    emailBtn.onclick = async (e) => {
-      e.preventDefault();
-      await sendEmail();
-    };
 
     shareBtn.onclick = async () => {
       if (!currentReport) return;
