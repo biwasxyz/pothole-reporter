@@ -6,4 +6,4 @@ workers_dev = true
 
 [[kv_namespaces]]
 binding = "REPORTS"
-id = "dfed857c87bf4298b7a3375150c163e8"
+id = "c159eaeb71af466088842f84c87e0990"

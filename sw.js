@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fixstreet-v1';
+const CACHE_NAME = 'fixstreet-ktm-v1';
 const ASSETS = [
   '/',
   '/index.html',

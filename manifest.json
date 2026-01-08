@@ -1,7 +1,7 @@
 {
-  "name": "Fix My Street",
-  "short_name": "FixStreet",
-  "description": "Report potholes in Bel Air, Los Angeles",
+  "name": "Fix My Street Kathmandu",
+  "short_name": "FixStreetKTM",
+  "description": "Report potholes in Kathmandu, Nepal",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",

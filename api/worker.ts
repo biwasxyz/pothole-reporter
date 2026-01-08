@@ -1,6 +1,7 @@
+/// <reference types="@cloudflare/workers-types" />
 /**
- * Fix My Street - Pothole Reporter for LA
- * Actually sends reports to LA 311
+ * Fix My Street - Pothole Reporter for Kathmandu
+ * Prepares reports for Kathmandu Metropolitan City
  */
 
 interface Env {
@@ -22,9 +23,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// LA Bureau of Street Services
-const LA_311_EMAIL = "311@lacity.org";
-const STREET_SERVICES_EMAIL = "BSS.CustomerService@lacity.org";
+// Kathmandu Metropolitan City contact emails
+const CITY_SERVICES_EMAIL = "info@kathmandu.gov.np";
+const ROAD_SERVICES_EMAIL = "roads@kathmandu.gov.np";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -111,7 +112,7 @@ a{color:#667eea}</style></head>
 async function handleReport(request: Request, env: Env, origin: string): Promise<Response> {
   try {
     const report: PotholeReport = await request.json();
-    const reportId = `LA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const reportId = `KTM-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
     const googleMapsUrl = `https://www.google.com/maps?q=${report.location.lat},${report.location.lng}`;
     const imageUrl = `${origin}/image/${reportId}`;
@@ -139,10 +140,10 @@ async function handleReport(request: Request, env: Env, origin: string): Promise
     const streetName = report.address.split(',')[0] || 'Unknown Location';
     const emailSubject = encodeURIComponent(`Pothole Report ${reportId} - ${streetName}`);
     const emailBody = encodeURIComponent(formalLetter);
-    const mailtoUrl = `mailto:${STREET_SERVICES_EMAIL}?cc=${LA_311_EMAIL}&subject=${emailSubject}&body=${emailBody}`;
+    const mailtoUrl = `mailto:${ROAD_SERVICES_EMAIL}?cc=${CITY_SERVICES_EMAIL}&subject=${emailSubject}&body=${emailBody}`;
 
-    // MyLA311 direct link
-    const myLA311Url = `https://myla311.lacity.org/portal/faces/home`;
+    // Kathmandu Metropolitan City portal
+    const cityPortalUrl = `https://kathmandu.gov.np/`;
 
     return new Response(JSON.stringify({
       success: true,
@@ -152,7 +153,7 @@ async function handleReport(request: Request, env: Env, origin: string): Promise
       viewUrl,
       formalLetter,
       mailtoUrl,
-      myLA311Url,
+      cityPortalUrl,
       address: report.address,
       message: "Report ready to send!",
     }), {
@@ -179,7 +180,7 @@ function generateFormalLetterWithImage(report: PotholeReport, reportId: string, 
 Report ID: ${reportId}
 Date: ${date}
 
-To: Los Angeles Bureau of Street Services
+To: Kathmandu Metropolitan City, Infrastructure Management Department
 Re: Pothole requiring immediate repair
 
 Dear Street Services Team,
@@ -201,10 +202,10 @@ This pothole poses a safety hazard to vehicles and pedestrians. Please prioritiz
 Thank you for your service to our community.
 
 Sincerely,
-A Concerned Bel Air Resident
+A Concerned Kathmandu Resident
 
 ---
-Submitted via Fix My Street App
+Submitted via Fix My Street Kathmandu
 Report ID: ${reportId}`;
 }
 
@@ -216,7 +217,7 @@ const HTML = `<!DOCTYPE html>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f0f23">
-  <title>POTHOLE HUNTER - Bel Air</title>
+  <title>POTHOLE HUNTER - Kathmandu</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -427,7 +428,7 @@ const HTML = `<!DOCTYPE html>
     }
     .send-btn:active { transform: scale(0.97); }
     .send-btn.email { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .send-btn.la311 { background: linear-gradient(135deg, #ff6b35 0%, #f7c531 100%); }
+    .send-btn.portal { background: linear-gradient(135deg, #ff6b35 0%, #f7c531 100%); }
     .send-btn.share { background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); }
     .send-btn .icon { font-size: 22px; }
 
@@ -557,7 +558,7 @@ const HTML = `<!DOCTYPE html>
   <div id="main-screen" class="screen active">
     <div class="header">
       <h1>POTHOLE HUNTER</h1>
-      <p>Making Bel Air roads smooth again</p>
+      <p>Making Kathmandu roads smooth again</p>
     </div>
     <div class="main">
       <div id="gps-bar" class="gps-bar searching">
@@ -590,7 +591,7 @@ const HTML = `<!DOCTYPE html>
   <div id="success-screen" class="screen success-screen">
     <div class="success-icon">🎯</div>
     <h2>POTHOLE LOCKED!</h2>
-    <p class="subtitle">Ready to send to LA Street Services</p>
+    <p class="subtitle">Ready to send to Kathmandu City Services</p>
 
     <div class="report-card">
       <img id="report-img" src="" alt="Pothole photo">
@@ -604,10 +605,10 @@ const HTML = `<!DOCTYPE html>
 
     <div class="send-options">
       <a id="email-btn" href="#" class="send-btn email">
-        <span class="icon">📧</span> Email Street Services
+        <span class="icon">📧</span> Email City Services
       </a>
-      <a id="la311-btn" href="https://myla311.lacity.org" target="_blank" class="send-btn la311">
-        <span class="icon">🏛️</span> Open LA311 Portal
+      <a id="city-portal-btn" href="https://kathmandu.gov.np/" target="_blank" class="send-btn portal">
+        <span class="icon">🏛️</span> Open Kathmandu Portal
       </a>
       <button id="share-btn" class="send-btn share">
         <span class="icon">📤</span> Share Report
@@ -876,15 +877,77 @@ const HTML = `<!DOCTYPE html>
     }
 
     async function reverseGeo(l) {
-      if (!l) return 'Bel Air, Los Angeles, CA';
+      if (!l) return 'Kathmandu, Nepal';
       try {
         const r = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + l.lat + '&lon=' + l.lng + '&format=json&addressdetails=1');
         const d = await r.json();
         const a = d.address || {};
-        const parts = [a.house_number, a.road, a.neighbourhood || a.suburb, a.city || 'Los Angeles', 'CA', a.postcode].filter(Boolean);
-        return parts.join(', ') || d.display_name || 'Bel Air, Los Angeles, CA';
-      } catch { return 'Bel Air, Los Angeles, CA'; }
+        const parts = [
+          a.house_number,
+          a.road,
+          a.neighbourhood || a.suburb,
+          a.city || a.town || a.municipality || 'Kathmandu',
+          a.state || a.county || 'Bagmati Province',
+          a.postcode,
+          a.country || 'Nepal'
+        ].filter(Boolean);
+        return parts.join(', ') || d.display_name || 'Kathmandu, Nepal';
+      } catch { return 'Kathmandu, Nepal'; }
     }
+
+    function dataUrlToFile(dataUrl, filename) {
+      const parts = dataUrl.split(',');
+      const meta = parts[0] || '';
+      const base64 = parts[1] || '';
+      const match = /data:(.*?);base64/.exec(meta);
+      const mime = match ? match[1] : 'image/jpeg';
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new File([bytes], filename, { type: mime });
+    }
+
+    function stripPhotoLinks(text) {
+      return text
+        .split('\\n')
+        .filter((line) => {
+          const trimmed = line.trim().toLowerCase();
+          return !(
+            trimmed.startsWith('photo of pothole:') ||
+            trimmed.startsWith('full report with photo:') ||
+            trimmed.startsWith('photo:') ||
+            trimmed.startsWith('image:')
+          );
+        })
+        .join('\\n')
+        .trim();
+    }
+
+    async function sendEmail() {
+      if (!currentReport || !photoData) return;
+      const baseText = currentReport.formalLetter || '';
+      const emailText = stripPhotoLinks(baseText) + '\\n\\nPhoto attached.';
+      const file = dataUrlToFile(photoData, 'pothole-' + (currentReport.reportId || 'report') + '.jpg');
+      const shareData = { title: 'Pothole Report', text: emailText, files: [file] };
+
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch {}
+      }
+
+      if (currentReport.mailtoUrl) {
+        window.location.href = currentReport.mailtoUrl;
+      }
+    }
+
+    emailBtn.onclick = async (e) => {
+      e.preventDefault();
+      await sendEmail();
+    };
 
     shareBtn.onclick = async () => {
       if (!currentReport) return;

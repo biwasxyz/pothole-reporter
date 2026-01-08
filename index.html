@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1a1a2e">
-  <title>Fix My Street</title>
+  <title>Fix My Street - Kathmandu</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <style>
@@ -187,6 +187,23 @@
       margin-bottom: 32px;
     }
 
+    .send-btn {
+      padding: 16px 48px;
+      background: #27ae60;
+      border: none;
+      border-radius: 30px;
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .again-btn {
       padding: 16px 48px;
       background: #667eea;
@@ -232,7 +249,7 @@
   <div id="capture-screen" class="screen active">
     <div class="header">
       <h1>Fix My Street</h1>
-      <p>Bel Air, Los Angeles</p>
+      <p>Kathmandu, Nepal</p>
     </div>
 
     <div class="main">
@@ -269,14 +286,15 @@
       <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z"/>
     </svg>
     <h2>Reported!</h2>
-    <p>LA 311 will fix this pothole.<br>Thank you for helping!</p>
+    <p>Tap "Send via Gmail" to email the report to Kathmandu Metropolitan City.<br>Thank you for helping!</p>
+    <button id="gmail-btn" class="send-btn" disabled>Send via Gmail</button>
     <button id="again-btn" class="again-btn">Report Another</button>
   </div>
 
   <!-- Loading overlay -->
   <div id="loading" class="loading">
     <div class="spinner"></div>
-    <div class="status-text">Sending to LA 311...</div>
+    <div class="status-text">Sending to Kathmandu City Services...</div>
   </div>
 
   <script>
@@ -293,12 +311,18 @@
     const captureScreen = document.getElementById('capture-screen');
     const successScreen = document.getElementById('success-screen');
     const againBtn = document.getElementById('again-btn');
+    const gmailBtn = document.getElementById('gmail-btn');
+
+    const CITY_SERVICES_EMAIL = 'anmaryal41@gmail.com';
+    const ROAD_SERVICES_EMAIL = 'anmaryal41@gmail.com';
 
     // State
     let stream = null;
     let currentLocation = null;
     let photoData = null;
     let hasPhoto = false;
+    let lastReport = null;
+    let lastAddress = null;
 
     // Start camera
     async function startCamera() {
@@ -369,29 +393,34 @@
       loading.classList.add('active');
 
       // Prepare report data
+      const address = await reverseGeocode(currentLocation);
+      lastAddress = address;
       const report = {
         type: 'pothole',
-        location: currentLocation || { lat: 34.0825, lng: -118.4476 }, // Default to Bel Air
+        location: currentLocation || { lat: 27.7172, lng: 85.3240 }, // Default to Kathmandu
         timestamp: new Date().toISOString(),
         image: photoData,
-        address: await reverseGeocode(currentLocation),
-        source: 'Fix My Street App'
+        address,
+        source: 'Fix My Street Kathmandu'
       };
 
       try {
-        // Submit to LA 311 (via our backend)
+        // Submit to Kathmandu City Services (via our backend)
         const response = await fetch('https://pothole-api.p-d07.workers.dev/report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(report)
         });
 
+        const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error('Submit failed');
+        lastReport = data;
 
         // Success!
         loading.classList.remove('active');
         captureScreen.classList.remove('active');
         successScreen.classList.add('active');
+        gmailBtn.disabled = false;
 
       } catch (err) {
         console.error('Submit error:', err);
@@ -399,6 +428,8 @@
         loading.classList.remove('active');
         captureScreen.classList.remove('active');
         successScreen.classList.add('active');
+        lastReport = null;
+        gmailBtn.disabled = false;
 
         // Save locally for retry
         saveForLater(report);
@@ -407,13 +438,116 @@
 
     // Reverse geocode
     async function reverseGeocode(loc) {
-      if (!loc) return 'Bel Air, Los Angeles, CA';
+      if (!loc) return 'Kathmandu, Nepal';
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${loc.lat}&lon=${loc.lng}&format=json`);
         const data = await res.json();
-        return data.display_name || 'Bel Air, Los Angeles, CA';
+        return data.display_name || 'Kathmandu, Nepal';
       } catch {
-        return 'Bel Air, Los Angeles, CA';
+        return 'Kathmandu, Nepal';
+      }
+    }
+
+    function dataUrlToFile(dataUrl, filename) {
+      const [meta, base64] = dataUrl.split(',');
+      const match = /data:(.*?);base64/.exec(meta || '');
+      const mime = match ? match[1] : 'image/jpeg';
+      const binary = atob(base64 || '');
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new File([bytes], filename, { type: mime });
+    }
+
+    function buildGmailUrl(details) {
+      const parts = [
+        `to=${encodeURIComponent(details.to || '')}`,
+        details.cc ? `cc=${encodeURIComponent(details.cc)}` : '',
+        `su=${encodeURIComponent(details.subject || '')}`,
+        `body=${encodeURIComponent(details.body || '')}`
+      ].filter(Boolean);
+      return `https://mail.google.com/mail/?view=cm&fs=1&${parts.join('&')}`;
+    }
+
+    function buildGmailUrlFromMailto(mailtoUrl, fallbackSubject, fallbackBody) {
+      if (!mailtoUrl) {
+        return buildGmailUrl({
+          to: ROAD_SERVICES_EMAIL,
+          cc: CITY_SERVICES_EMAIL,
+          subject: fallbackSubject,
+          body: fallbackBody
+        });
+      }
+      const cleaned = mailtoUrl.replace(/^mailto:/, '');
+      const [toPart, queryString] = cleaned.split('?');
+      const params = new URLSearchParams(queryString || '');
+      const to = decodeURIComponent(toPart || '');
+      const cc = params.get('cc') || '';
+      const subject = params.get('subject') || fallbackSubject;
+      const body = params.get('body') || fallbackBody;
+      return buildGmailUrl({ to, cc, subject, body });
+    }
+
+    function stripPhotoLinks(text) {
+      return text
+        .split('\n')
+        .filter((line) => {
+          const trimmed = line.trim().toLowerCase();
+          return !(
+            trimmed.startsWith('photo of pothole:') ||
+            trimmed.startsWith('full report with photo:') ||
+            trimmed.startsWith('photo:') ||
+            trimmed.startsWith('image:')
+          );
+        })
+        .join('\n')
+        .trim();
+    }
+
+    async function sendViaGmail() {
+      if (!photoData) return;
+
+      const reportId = lastReport && lastReport.reportId
+        ? lastReport.reportId
+        : `KTM-${Date.now().toString(36).toUpperCase()}`;
+      const address = (lastReport && lastReport.address) || lastAddress || 'Kathmandu, Nepal';
+      const streetName = address.split(',')[0];
+      const baseSubject = `Pothole Report ${reportId}`;
+      const subject = streetName ? `${baseSubject} - ${streetName}` : baseSubject;
+      const mapUrl = (lastReport && lastReport.googleMapsUrl) || (currentLocation
+        ? `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`
+        : '');
+      const imageUrl = lastReport && lastReport.imageUrl ? lastReport.imageUrl : '';
+
+      let body = lastReport && lastReport.formalLetter ? lastReport.formalLetter : '';
+      if (!body) {
+        const parts = [
+          baseSubject,
+          '',
+          `Location: ${address}`,
+          currentLocation ? `GPS: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lng.toFixed(6)}` : '',
+          mapUrl ? `Google Maps: ${mapUrl}` : '',
+          imageUrl ? `Photo: ${imageUrl}` : '',
+        ].filter(Boolean);
+        body = parts.join('\n');
+      }
+
+      const gmailUrl = buildGmailUrlFromMailto(lastReport && lastReport.mailtoUrl, subject, body);
+      const shareBody = `${stripPhotoLinks(body)}\n\nPhoto attached.`;
+      const file = dataUrlToFile(photoData, `pothole-${reportId}.jpg`);
+      const shareData = { title: subject, text: shareBody, files: [file] };
+
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch {}
+      }
+
+      const popup = window.open(gmailUrl, '_blank', 'noopener');
+      if (!popup) {
+        window.location.href = gmailUrl;
       }
     }
 
@@ -428,6 +562,8 @@
     function reset() {
       hasPhoto = false;
       photoData = null;
+      lastReport = null;
+      lastAddress = null;
       preview.style.display = 'none';
       video.style.display = 'block';
       captureBtn.querySelector('svg').innerHTML = '<circle cx="12" cy="12" r="8"/>';
@@ -435,6 +571,7 @@
       statusSub.textContent = 'Tap the big button';
       successScreen.classList.remove('active');
       captureScreen.classList.add('active');
+      gmailBtn.disabled = true;
     }
 
     // Button handler
@@ -446,6 +583,7 @@
       }
     });
 
+    gmailBtn.addEventListener('click', sendViaGmail);
     againBtn.addEventListener('click', reset);
 
     // Initialize
